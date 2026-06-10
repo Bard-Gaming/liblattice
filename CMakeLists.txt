@@ -14,4 +14,7 @@ project(Lattice VERSION 1.0
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_library(lattice SHARED)
+add_library(lattice SHARED
+                    src/sockets/NonBlockingSocket/NonBlockingSocket.cpp
+                    src/sockets/Socket/Socket.cpp)
+target_include_directories(lattice PRIVATE include/)
