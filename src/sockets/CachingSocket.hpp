@@ -9,17 +9,20 @@
 #pragma once
 
 #include "NonBlockingSocket/NonBlockingSocket.hpp"
-#include "Utils.hpp"
+#include "../utils.hpp"
 #include <algorithm>
-#include <stdexcept>
+#include <array>
+#include <span>
 
 
 namespace Lattice {
-    template <char D[]>
+    template <Serializable T, std::size_t S>
     class CachingSocket : public NonBlockingSocket {
-        static constexpr
+        using Type = T;
+        static constexpr auto CACHE_ELEMENTS = S;
+        static constexpr auto CACHE_SIZE = CACHE_ELEMENTS * sizeof(Type);
 
-        std::array<char, S> m_Cache;
+        std::array<char, CACHE_SIZE> m_Cache;
         std::size_t m_FilledBytes;
 
         public:
@@ -33,14 +36,12 @@ namespace Lattice {
             CachingSocket(NonBlockingSocket&& other) : CachingSocket() { swap(other); }
             CachingSocket(Socket&& other) : CachingSocket() { swap(other); }
 
-            static inline constexpr std::size_t cacheSize() { return S; }
             inline void clearCache() { m_FilledBytes = 0; }
 
-            template <Serializable T>
-            std::optional<T> read() requires (sizeof(T) <= S)
+            std::optional<Type> read()
             {
-                if (m_FilledBytes >= sizeof(T))
-                    return dataFromCache<T>();
+                if (m_FilledBytes >= sizeof(Type))
+                    return popFromCache();
 
                 std::span<char> toFill = freeCache();
                 ssize_t bytesRead = NonBlockingSocket::read(toFill, toFill.size());
@@ -49,12 +50,13 @@ namespace Lattice {
 
                 m_FilledBytes += bytesRead;
 
-                if (m_FilledBytes >= sizeof(T))
-                    return dataFromCache<T>();
+                if (m_FilledBytes >= sizeof(Type))
+                    return popFromCache();
 
                 return {};
             }
 
+            inline void operator=(Socket&& other) { swap(other); }
             inline void operator=(NonBlockingSocket&& other) { swap(other); }
             inline void operator=(CachingSocket&& other) { swap(other); }
             constexpr void swap(CachingSocket& other)
@@ -64,20 +66,28 @@ namespace Lattice {
                 NonBlockingSocket::swap(other);
             }
 
+            /**
+             * Note:
+             * This clears the cache.
+             */
             constexpr void swap(NonBlockingSocket& other)
             {
                 m_FilledBytes = 0;
                 NonBlockingSocket::swap(other);
             }
 
+            /**
+             * Note:
+             * This clears the cache.
+             */
             constexpr void swap(Socket& other)
             {
                 m_FilledBytes = 0;
-                NonBlockingSocket::swap(other);
+                Socket::swap(other);
             }
 
         private:
-            bool isCacheFull() const { return m_FilledBytes == S; }
+            bool isCacheFull() const { return m_FilledBytes >= CACHE_SIZE; }
 
             std::span<char> freeCache()   { return std::span<char>(m_Cache.begin() + m_FilledBytes, m_Cache.end()); }
             std::span<char> filledCache() { return std::span<char>(m_Cache.begin(), m_Cache.begin() + m_FilledBytes); }
@@ -86,32 +96,24 @@ namespace Lattice {
              * Note:
              * Assumes m_FilledBytes >= sizeof(T)
              */
-            template <Serializable T>
-            constexpr T dataFromCache() requires (sizeof(T) <= S) {
-                if (m_FilledBytes < sizeof(T))
-                    throw std::runtime_error("building data type from cache isn't possible");
+            constexpr Type popFromCache() noexcept {
+                Type data = cacheCast<Type>(filledCache());
 
-                T data = cacheCast<T>(filledCache());
-
-                for (std::size_t i = m_FilledBytes; i < S; i++)
+                for (std::size_t i = m_FilledBytes; i < CACHE_SIZE; i++)
                     m_Cache[i - m_FilledBytes] = m_Cache[i];
 
-                m_FilledBytes -= sizeof(T);
-
+                m_FilledBytes -= sizeof(Type);
                 return data;
             }
 
-            template <Serializable T>
-            static constexpr T cacheCast(std::span<char> cache) requires (sizeof(T) <= S)
+            /**
+             * Note:
+             * Assumes cache.size() >= sizeof(To)
+             */
+            template <Serializable To>
+            static To cacheCast(std::span<char> cache) requires (sizeof(To) <= CACHE_SIZE)
             {
-                // the only way to cast the bits of our cache
-                // into the desired type is to use std::bit_cast
-                // (due to strict aliasing), which requires both
-                // types (to and from) to be of the same size.
-                struct { char data[sizeof(T)]; } repr;
-                std::copy(cache.begin(), cache.end(), repr.data);
-
-                return std::bit_cast<T>(repr);
+                return *reinterpret_cast<To*>(cache.data());
             }
     };
 }

@@ -9,4 +9,5 @@
 #pragma once
 
 #include "lattice/exceptions.hpp"
-#include "lattice/networking.hpp"
+#include "lattice/sockets.hpp"
+#include "../src/utils.hpp"
