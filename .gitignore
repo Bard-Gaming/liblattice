@@ -1,0 +1,7 @@
+# CMake build dir
+build/
+
+# Compiled files
+*.dll
+*.so
+*.o
