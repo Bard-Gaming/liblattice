@@ -13,7 +13,6 @@ project(Lattice VERSION 1.0
                 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lasan -fsanitize=address")
 
 add_library(lattice SHARED
                     src/sockets/NonBlockingSocket/NonBlockingSocket.cpp

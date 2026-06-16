@@ -1,0 +1,125 @@
+/*
+** EPITECH PROJECT, 2026
+** Project - Lattice
+** File description:
+** Implementation for
+** Server class
+*/
+
+#pragma once
+
+#include <lattice/concepts.hpp>
+#include <lattice/sockets.hpp>
+#include <lattice/utils.hpp>
+#include <vector>
+#include <atomic>
+#include <list>
+#include <poll.h>
+
+
+namespace Lattice {
+    template <SocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50>
+    class Server {
+        static constexpr auto CONNECTION_BACKLOG = CB;
+        using ClientSocket = C;
+        using ServerSocket = S;
+
+        ServerSocket m_Host;
+        std::list<ClientSocket> m_Clients;
+        std::vector<pollfd> m_PollFds;
+
+        Utils::InterruptHandler m_InterruptHandler;
+        std::atomic<bool> m_IsRunning;
+
+        public:
+            Server(std::string_view ip, std::uint16_t port)
+                : m_Host()
+                , m_Clients()
+                , m_PollFds()
+                , m_InterruptHandler([&](){ m_IsRunning.store(false); })
+                , m_IsRunning(false)
+            {
+                m_Host.open();
+                m_Host.bind(ip, port);
+                m_Host.listen();
+
+                m_PollFds.emplace_back(m_Host.fileno(), POLLIN, 0);
+            }
+
+            void run()
+            {
+                m_IsRunning.store(true);
+
+                while (m_IsRunning.load()) {
+                    pollSockets();
+                    purgeDisconnectedClients();
+
+                    for (auto& client : m_Clients)
+                        updateClient(client);
+
+                    acceptClient();
+                }
+            }
+
+        private:
+            virtual inline void updateClient(ClientSocket&) {}
+            virtual inline void onClientAccepted(const ClientSocket&) {}
+            virtual inline void onClientDisconnected(const ClientSocket&) {}
+
+            void pollSockets()
+            {
+                std::size_t pollIndex;
+
+                pollIndex = 1;
+                for (auto& client : m_Clients) {
+                    m_PollFds[pollIndex].events = client.requiredEvents();
+                    pollIndex++;
+                }
+
+                int success = ::poll(m_PollFds.data(), m_PollFds.size(), -1);
+                if (success < 0)
+                    return;
+
+                m_Host.registerEvents(m_PollFds[0].revents);
+
+                pollIndex = 1;
+                for (auto& client : m_Clients) {
+                    client.registerEvents(m_PollFds[pollIndex].revents);
+                    pollIndex++;
+                }
+            }
+
+            void purgeDisconnectedClients()
+            {
+                auto pollfd = ++m_PollFds.cbegin();
+                auto it = m_Clients.cbegin();
+
+                while (it != m_Clients.cend()) {
+                    if (it->isOpen()) {
+                        ++pollfd;
+                        ++it;
+                        continue;
+                    }
+
+                    // disconnected client, so remove
+                    onClientDisconnected(*it);
+                    it = m_Clients.erase(it);
+                    pollfd = m_PollFds.erase(pollfd);
+                }
+            }
+
+            void acceptClient()
+            {
+                auto newPeer = m_Host.accept();
+                if (!newPeer)
+                    return;
+
+                ClientSocket peer = std::move(*newPeer);
+
+                m_PollFds.emplace_back(peer.fileno(), peer.requiredEvents(), 0);
+                m_Clients.push_back(std::move(peer));
+
+                onClientAccepted(m_Clients.back());
+            }
+    };
+}
