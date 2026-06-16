@@ -149,16 +149,10 @@ void Lattice::Socket::connect(std::string_view ip, std::uint16_t port)
  *
  * The actual number of written bytes can be
  * retrieved using the returned value.
- *
- * Note:
- * Regardless of the outcome of this function,
- * the specified buffer will be changed.
  */
 ssize_t Lattice::Socket::read(std::span<char> buffer, std::size_t amount)
 {
     std::size_t possibleAmnt = std::min(buffer.size(), amount);
-
-    std::ranges::fill(buffer, '\0');
 
     ssize_t readBytes = ::read(m_FD, buffer.data(), possibleAmnt);
 
