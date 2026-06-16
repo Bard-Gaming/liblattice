@@ -9,20 +9,18 @@
 #pragma once
 
 #include "NonBlockingSocket/NonBlockingSocket.hpp"
-#include "../utils.hpp"
+#include <string_view>
 #include <algorithm>
+#include <string>
 #include <array>
-#include <span>
 
 
 namespace Lattice {
-    template <Serializable T, std::size_t S>
+    template <std::size_t S = 1024>
     class CachingSocket : public NonBlockingSocket {
-        using Type = T;
-        static constexpr auto CACHE_ELEMENTS = S;
-        static constexpr auto CACHE_SIZE = CACHE_ELEMENTS * sizeof(Type);
+        static constexpr std::size_t MAX_CACHE_SIZE = S;
 
-        std::array<char, CACHE_SIZE> m_Cache;
+        std::array<char, MAX_CACHE_SIZE> m_Cache;
         std::size_t m_FilledBytes;
 
         public:
@@ -30,90 +28,103 @@ namespace Lattice {
                 : NonBlockingSocket()
                 , m_Cache()
                 , m_FilledBytes(0)
-            {}
-
-            CachingSocket(CachingSocket&& other) : CachingSocket() { swap(other); }
-            CachingSocket(NonBlockingSocket&& other) : CachingSocket() { swap(other); }
-            CachingSocket(Socket&& other) : CachingSocket() { swap(other); }
-
-            inline void clearCache() { m_FilledBytes = 0; }
-
-            std::optional<Type> read()
             {
-                if (m_FilledBytes >= sizeof(Type))
-                    return popFromCache();
 
-                std::span<char> toFill = freeCache();
-                ssize_t bytesRead = NonBlockingSocket::read(toFill, toFill.size());
+            }
+
+            CachingSocket(CachingSocket&& other) { swap(other); }
+            CachingSocket(NonBlockingSocket&& other) { swap(other); }
+            CachingSocket(Socket&& other) { swap(other); }
+
+            bool readUntil(std::string& output, char delimiter)
+            {
+                if (popFromCache(output, delimiter))
+                    return true;
+
+                std::size_t toFill = MAX_CACHE_SIZE - m_FilledBytes;
+                auto start = m_Cache.begin();
+                std::advance(start, m_FilledBytes);
+                std::span<char> bufferToFill(start, m_Cache.end());
+
+                auto bytesRead = NonBlockingSocket::read(bufferToFill, toFill);
                 if (bytesRead <= 0)
-                    return {};
+                    return false;
 
                 m_FilledBytes += bytesRead;
-
-                if (m_FilledBytes >= sizeof(Type))
-                    return popFromCache();
-
-                return {};
+                return popFromCache(output, delimiter);
             }
 
-            inline void operator=(Socket&& other) { swap(other); }
-            inline void operator=(NonBlockingSocket&& other) { swap(other); }
-            inline void operator=(CachingSocket&& other) { swap(other); }
-            constexpr void swap(CachingSocket& other)
+            inline void operator=(CachingSocket&& other)     { swap(std::move(other)); }
+            inline void operator=(NonBlockingSocket&& other) { swap(std::move(other)); }
+            inline void operator=(Socket&& other)            { swap(std::move(other)); }
+            void swap(CachingSocket& other)
             {
                 std::swap(m_Cache, other.m_Cache);
-                std::swap(m_FilledBytes, m_FilledBytes);
                 NonBlockingSocket::swap(other);
             }
 
-            /**
-             * Note:
-             * This clears the cache.
-             */
-            constexpr void swap(NonBlockingSocket& other)
+            void swap(NonBlockingSocket& other)
             {
-                m_FilledBytes = 0;
+                m_Cache.fill('\0');
                 NonBlockingSocket::swap(other);
             }
 
-            /**
-             * Note:
-             * This clears the cache.
-             */
-            constexpr void swap(Socket& other)
+            void swap(Socket& other)
             {
-                m_FilledBytes = 0;
-                Socket::swap(other);
+                m_Cache.fill('\0');
+                NonBlockingSocket::swap(other);
             }
 
         private:
-            bool isCacheFull() const { return m_FilledBytes >= CACHE_SIZE; }
-
-            std::span<char> freeCache()   { return std::span<char>(m_Cache.begin() + m_FilledBytes, m_Cache.end()); }
-            std::span<char> filledCache() { return std::span<char>(m_Cache.begin(), m_Cache.begin() + m_FilledBytes); }
-
             /**
+             * Pops (i.e. retrieves and removes) a string
+             * from the cache. The string starts at the beginning
+             * of the cache and goes up to the specified delimiter.
+             *
              * Note:
-             * Assumes m_FilledBytes >= sizeof(T)
+             * The given string will inevitably get cleared when
+             * the function is called.
+             *
+             * Furthermore, the returned string being empty does
+             * not indicate that an error occurred, since there
+             * may just be two consecutive delimiters.
              */
-            constexpr Type popFromCache() noexcept {
-                Type data = cacheCast<Type>(filledCache());
+            bool popFromCache(std::string& output, char delimiter)
+            {
+                output.clear();
 
-                for (std::size_t i = m_FilledBytes; i < CACHE_SIZE; i++)
-                    m_Cache[i - m_FilledBytes] = m_Cache[i];
+                auto start = m_Cache.begin();
+                auto end = start;
+                std::advance(end, m_FilledBytes);
 
-                m_FilledBytes -= sizeof(Type);
-                return data;
+                auto valueEnd = std::find(start, end, delimiter);
+                if (valueEnd == end)
+                    return false;
+
+                ++valueEnd;  // delimiter is part of output
+                std::string_view value(start, valueEnd);
+                output.append(value);
+                clearFromCache(value.length());
+
+                return true;
             }
 
             /**
+             * Removes nChars from the
+             * cache.
+             *
              * Note:
-             * Assumes cache.size() >= sizeof(To)
+             * Assumes nChars <= m_FilledByes.
              */
-            template <Serializable To>
-            static To cacheCast(std::span<char> cache) requires (sizeof(To) <= CACHE_SIZE)
+            void clearFromCache(std::size_t nChars)
             {
-                return *reinterpret_cast<To*>(cache.data());
+                std::size_t newSize = m_FilledBytes - nChars;
+
+                for (std::size_t i = 0; i < nChars; i++) {
+                    m_Cache[i] = m_Cache[i + nChars];
+                }
+
+                m_FilledBytes = newSize;
             }
     };
 }
