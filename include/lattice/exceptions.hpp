@@ -9,4 +9,5 @@
 #pragma once
 
 #include "../../src/exceptions/BaseException.hpp"
+#include "../../src/exceptions/SignalHandlerException.hpp"
 #include "../../src/exceptions/SocketException.hpp"
