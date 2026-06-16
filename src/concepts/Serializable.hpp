@@ -3,7 +3,7 @@
 ** Project - Lattice
 ** File description:
 ** Header file for
-** common utilities
+** Serializable concept
 */
 
 #pragma once
