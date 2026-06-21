@@ -32,12 +32,24 @@ namespace Lattice {
         std::atomic<bool> m_IsRunning;
 
         public:
-            Server(std::string_view ip, std::uint16_t port)
+            Server()
                 : m_Host()
                 , m_Clients()
                 , m_PollFds()
                 , m_InterruptHandler([&](){ m_IsRunning.store(false); })
                 , m_IsRunning(false)
+            {
+
+            }
+
+            Server(Server&& other)
+                : Server()
+            {
+                swap(other);
+            }
+
+            Server(std::string_view ip, std::uint16_t port)
+                : Server()
             {
                 m_Host.open();
                 m_Host.bind(ip, port);
@@ -48,7 +60,9 @@ namespace Lattice {
 
             void run()
             {
+
                 m_IsRunning.store(true);
+                onStart();
 
                 while (m_IsRunning.load()) {
                     pollSockets();
@@ -59,9 +73,27 @@ namespace Lattice {
 
                     acceptClient();
                 }
+
+                onShutdown();
+            }
+
+            inline void operator=(Server&& other) { swap(other); }
+            void swap(Server& other)
+            {
+                std::swap(m_Host, other.m_Host);
+                std::swap(m_Clients, other.m_Clients);
+                std::swap(m_PollFds, other.m_PollFds);
+                m_InterruptHandler.swap(other.m_InterruptHandler);
+
+                bool intermediate = m_IsRunning.load();
+                m_IsRunning.store(other.m_IsRunning.load());
+                other.m_IsRunning.store(intermediate);
             }
 
         private:
+            virtual inline void onStart() {}
+            virtual inline void onShutdown() {}
+
             virtual inline void updateClient(ClientSocket&) {}
             virtual inline void onClientAccepted(const ClientSocket&) {}
             virtual inline void onClientDisconnected(const ClientSocket&) {}
