@@ -58,6 +58,9 @@ namespace Lattice {
                 m_PollFds.emplace_back(m_Host.fileno(), POLLIN, 0);
             }
 
+            inline std::string_view hostname() const { return m_Host.ip(); }
+            inline std::uint16_t port() const { return m_Host.port(); }
+
             void run()
             {
 
