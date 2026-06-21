@@ -63,6 +63,13 @@ namespace Lattice::Utils {
                 m_PreviousHandler = ::signal(SIGNAL, handleSignal);
             }
 
+            SignalHandler(const SignalHandler&) = delete;
+            SignalHandler(SignalHandler&& other)
+                : SignalHandler()
+            {
+                swap(other);
+            }
+
             ~SignalHandler()
             {
                 if (!m_Callback)
@@ -78,13 +85,6 @@ namespace Lattice::Utils {
 
                 if (m_Parent != nullptr)
                     m_Parent->m_Child = nullptr;
-            }
-
-            SignalHandler(const SignalHandler&) = delete;
-            SignalHandler(SignalHandler&& other)
-                : SignalHandler()
-            {
-                swap(other);
             }
 
             /**
