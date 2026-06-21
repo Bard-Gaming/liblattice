@@ -91,6 +91,14 @@ namespace Lattice {
                 bool intermediate = m_IsRunning.load();
                 m_IsRunning.store(other.m_IsRunning.load());
                 other.m_IsRunning.store(intermediate);
+
+                // Since the callbacks contain reference
+                // and they are swapped in the interrupt handler's
+                // swap() function, we need to set them back to what
+                // they were originally (otherwise shutting one server
+                // down will shut the other one down instead).
+                m_InterruptHandler.setCallback([&](){ m_IsRunning.store(false); });
+                other.m_InterruptHandler.setCallback([&](){ other.m_IsRunning.store(false); });
             }
 
         private:
