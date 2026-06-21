@@ -112,7 +112,7 @@ namespace Lattice::Utils {
             }
 
             inline void operator=(SignalHandler&& other) { swap(other); }
-            void swap(SignalHandler& other)
+            constexpr void swap(SignalHandler& other) noexcept
             {
                 if (s_TopLevelHandler == &other)
                     s_TopLevelHandler = this;
