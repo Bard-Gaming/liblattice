@@ -34,14 +34,17 @@ Lattice::Socket::~Socket()
 
 std::string_view Lattice::Socket::ip() const
 {
-    char* repr = ::inet_ntoa(m_Address.sin_addr);
+    char* repr = inet_ntoa(m_Address.sin_addr);
 
     return repr ? repr : "<no assigned ip>";
 }
 
 std::uint16_t Lattice::Socket::port() const
 {
-    return ::ntohs(m_Address.sin_port);
+    // Don't add `::` to netinet functions
+    // as MacOS may have implemented them
+    // with macros
+    return ntohs(m_Address.sin_port);
 }
 
 void Lattice::Socket::open()
@@ -200,6 +203,6 @@ void Lattice::Socket::setAddress(std::string_view ip, std::uint16_t port)
         throw Exceptions::SocketException(std::string(ip) + " is not a valid ip");
     }
 
-    m_Address.sin_port = ::htons(port);
+    m_Address.sin_port = htons(port);
     m_Address.sin_family = AF_INET;
 }
