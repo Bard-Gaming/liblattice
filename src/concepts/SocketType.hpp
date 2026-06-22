@@ -9,16 +9,28 @@
 #pragma once
 
 #include <span>
+#include <concepts>
 
 
 namespace Lattice {
+    class Socket;
+
     template <typename T>
-    concept SocketType = requires (T& socket, std::span<char> buff)
+    concept SocketType = requires (T& socket, std::span<char> buff, std::size_t amnt)
     {
         { socket.open()  };
         { socket.close() };
         { socket.fileno() } -> std::convertible_to<int>;
-        { socket.read(buff, 5) } -> std::convertible_to<int>;
-        { socket.write(buff)   } -> std::convertible_to<int>;
+        { socket.read(buff, amnt) } -> std::convertible_to<long long int>;
+        { socket.write(buff)      } -> std::convertible_to<long long int>;
+    };
+
+    template <typename T>
+    concept ClientSocketType = requires (T clientSocket, Socket&& socket, short revents)
+    {
+        { T(socket) };  // constructible from socket rvalue
+        { clientSocket.requiredEvents() } -> std::convertible_to<short>;
+        { clientSocket.registerEvents(revents) };
+
     };
 }
