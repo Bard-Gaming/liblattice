@@ -28,7 +28,7 @@ namespace Lattice {
     template <typename T>
     concept ClientSocketType = requires (T clientSocket, Socket&& socket, short revents)
     {
-        { T(socket) };  // constructible from socket rvalue
+        { T(std::move(socket)) };
         { clientSocket.requiredEvents() } -> std::convertible_to<short>;
         { clientSocket.registerEvents(revents) };
 
