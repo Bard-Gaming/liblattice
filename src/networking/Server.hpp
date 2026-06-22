@@ -18,7 +18,7 @@
 
 
 namespace Lattice {
-    template <SocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50>
+    template <ClientSocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50>
     class Server {
         static constexpr auto CONNECTION_BACKLOG = CB;
         using ClientSocket = C;
