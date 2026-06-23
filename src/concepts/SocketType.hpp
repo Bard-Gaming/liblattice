@@ -20,6 +20,7 @@ namespace Lattice {
     {
         { socket.open()  };
         { socket.close() };
+        { socket.isOpen() } -> std::same_as<bool>;
         { socket.fileno() } -> std::convertible_to<int>;
         { socket.read(buff, amnt) } -> std::convertible_to<long long int>;
         { socket.write(buff)      } -> std::convertible_to<long long int>;
@@ -29,8 +30,9 @@ namespace Lattice {
     concept ClientSocketType = requires (T clientSocket, Socket&& socket, short revents)
     {
         { T(std::move(socket)) };
+        { clientSocket.isOpen() } -> std::same_as<bool>;
+        { clientSocket.fileno() } -> std::convertible_to<int>;
         { clientSocket.requiredEvents() } -> std::convertible_to<short>;
         { clientSocket.registerEvents(revents) };
-
     };
 }
