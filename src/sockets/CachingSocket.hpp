@@ -32,9 +32,9 @@ namespace Lattice {
 
             }
 
-            CachingSocket(CachingSocket&& other) { swap(other); }
-            CachingSocket(NonBlockingSocket&& other) { swap(other); }
-            CachingSocket(Socket&& other) { swap(other); }
+            CachingSocket(CachingSocket&& other) : CachingSocket() { swap(other); }
+            CachingSocket(NonBlockingSocket&& other) : CachingSocket() { swap(other); }
+            CachingSocket(Socket&& other) : CachingSocket() { swap(other); }
 
             bool readUntil(std::string& output, char delimiter)
             {
@@ -60,18 +60,19 @@ namespace Lattice {
             void swap(CachingSocket& other)
             {
                 std::swap(m_Cache, other.m_Cache);
+                std::swap(m_FilledBytes, other.m_FilledBytes);
                 NonBlockingSocket::swap(other);
             }
 
             void swap(NonBlockingSocket& other)
             {
-                m_Cache.fill('\0');
+                m_FilledBytes = 0;
                 NonBlockingSocket::swap(other);
             }
 
             void swap(Socket& other)
             {
-                m_Cache.fill('\0');
+                m_FilledBytes = 0;
                 NonBlockingSocket::swap(other);
             }
 
