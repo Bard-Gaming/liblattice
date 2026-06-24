@@ -163,9 +163,9 @@ namespace Lattice {
                 ClientSocket peer = std::move(*newPeer);
 
                 m_PollFds.emplace_back(peer.fileno(), peer.requiredEvents(), 0);
-                m_Clients.push_back(std::move(peer));
+                auto& savedPeer = m_Clients.emplace_back(std::move(peer));
 
-                onClientAccepted(m_Clients.back());
+                onClientAccepted(savedPeer);
             }
     };
 }
