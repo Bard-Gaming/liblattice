@@ -27,6 +27,7 @@ namespace Lattice {
         ServerSocket m_Host;
         std::list<ClientSocket> m_Clients;
         std::vector<pollfd> m_PollFds;
+        bool m_WaitPoll;
 
         Utils::InterruptHandler m_InterruptHandler;
         std::atomic<bool> m_IsRunning;
@@ -36,6 +37,7 @@ namespace Lattice {
                 : m_Host()
                 , m_Clients()
                 , m_PollFds()
+                , m_WaitPoll(true)
                 , m_InterruptHandler([&](){ m_IsRunning.store(false); })
                 , m_IsRunning(false)
             {
@@ -60,6 +62,19 @@ namespace Lattice {
 
             inline std::string_view hostname() const { return m_Host.ip(); }
             inline std::uint16_t port() const { return m_Host.port(); }
+
+            /**
+             * Makes the server block until
+             * the server or one of the clients
+             * changes (i.e. disconnects or sends
+             * something to the server).
+             *
+             * By default, this is true to optimize
+             * compute (though you might want to update
+             * internal state in the meantime, in which
+             * case setting this to false is recommended).
+             */
+            void waitPoll(bool wait = true) { m_WaitPoll = wait; }
 
             void run()
             {
@@ -122,7 +137,7 @@ namespace Lattice {
                     pollIndex++;
                 }
 
-                int success = ::poll(m_PollFds.data(), m_PollFds.size(), -1);
+                int success = ::poll(m_PollFds.data(), m_PollFds.size(), m_WaitPoll ? -1 : 0);
                 if (success < 0)
                     return;
 
