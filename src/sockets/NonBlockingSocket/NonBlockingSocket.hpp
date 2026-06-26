@@ -29,6 +29,7 @@ namespace Lattice {
 
             bool canWrite() const noexcept;
             bool canRead() const noexcept;
+            inline void refresh() noexcept { disableRead(); disableWrite(); }
 
             short requiredEvents() const noexcept;
             void registerEvents(short revents) noexcept;
