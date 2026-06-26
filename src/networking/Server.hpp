@@ -73,7 +73,6 @@ namespace Lattice {
 
             void run()
             {
-
                 m_IsRunning.store(true);
                 onStart();
 
@@ -122,6 +121,8 @@ namespace Lattice {
             virtual inline void onClientAccepted(const ClientSocket&) {}
             virtual inline void onClientDisconnected(const ClientSocket&) {}
 
+            virtual inline int pollTimeout(int current) { return current; }
+
             void pollSockets()
             {
                 std::size_t pollIndex;
@@ -132,6 +133,7 @@ namespace Lattice {
                     pollIndex++;
                 }
 
+                m_PollTimeout = pollTimeout(m_PollTimeout);
                 int success = ::poll(m_PollFds.data(), m_PollFds.size(), m_PollTimeout);
                 if (success < 0)
                     return;
