@@ -129,7 +129,7 @@ namespace Lattice {
 
                 if constexpr (DO_DOUBLE_UPDATE) {
                     for (auto& client : m_Clients)
-                        updateClient(client);
+                        updateClientPost(client);
                 }
 
                 acceptClient();
@@ -142,6 +142,7 @@ namespace Lattice {
             virtual inline void updateStart() {}
             virtual inline void updateEnd() {}
             virtual inline void updateClient(ClientSocket&) {}
+            virtual inline void updateClientPost(ClientSocket& client) { updateClient(client); }
             virtual inline void onClientAccepted(ClientSocket&) {}
             virtual inline void onClientDisconnected(ClientSocket&) {}
 
