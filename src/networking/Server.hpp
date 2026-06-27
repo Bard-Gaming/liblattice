@@ -18,10 +18,10 @@
 
 
 namespace Lattice {
-    template <ClientSocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50, bool SU = true>
+    template <ClientSocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50, bool DU = true>
     class Server {
         static constexpr auto CONNECTION_BACKLOG = CB;
-        static constexpr auto USE_SAFE_UPDATE = SU;
+        static constexpr auto DO_DOUBLE_UPDATE = DU;
 
         using ClientSocket = C;
         using ServerSocket = S;
@@ -79,10 +79,7 @@ namespace Lattice {
                 onStart();
 
                 while (m_IsRunning.load()) {
-                    if constexpr (USE_SAFE_UPDATE)
-                        updateSafe();
-                    else
-                        updateUnsafe();
+                    update();
                 }
 
                 onShutdown();
@@ -110,41 +107,32 @@ namespace Lattice {
             }
 
         private:
-            void updateSafe()
-            {
-                pollSockets();
-
-                updateStart();
-                purgeDisconnectedClients();
-
-                for (auto& client : m_Clients)
-                    updateClient(client);
-
-                acceptClient();
-                updateEnd();
-            }
-
             /**
              * Note:
-             * This update function is 'unsafe'
-             * as it immediately updates a newly
-             * accepted client, meaning the assumption
-             * that a client is available to read
-             * and write at the start of an update
-             * isn't true anymore.
+             * The reason a double update might
+             * be useful is that some clients updates
+             * might depend on other clients, meaning
+             * that the server would exhude different
+             * behaviour based on when each client connected.
+             * A double update might decrease performance,
+             * but increase the overall stability of the server.
              */
-            void updateUnsafe()
+            void update()
             {
                 pollSockets();
 
                 updateStart();
                 purgeDisconnectedClients();
 
-                acceptClient();
-
                 for (auto& client : m_Clients)
                     updateClient(client);
 
+                if constexpr (DO_DOUBLE_UPDATE) {
+                    for (auto& client : m_Clients)
+                        updateClient(client);
+                }
+
+                acceptClient();
                 updateEnd();
             }
 
