@@ -78,14 +78,15 @@ namespace Lattice {
 
                 while (m_IsRunning.load()) {
                     pollSockets();
-                    purgeDisconnectedClients();
 
-                    updateServer();
+                    updateStart();
+                    purgeDisconnectedClients();
 
                     for (auto& client : m_Clients)
                         updateClient(client);
 
                     acceptClient();
+                    updateEnd();
                 }
 
                 onShutdown();
@@ -116,7 +117,8 @@ namespace Lattice {
             virtual inline void onStart() {}
             virtual inline void onShutdown() {}
 
-            virtual inline void updateServer() {}
+            virtual inline void updateStart() {}
+            virtual inline void updateEnd() {}
             virtual inline void updateClient(ClientSocket&) {}
             virtual inline void onClientAccepted(const ClientSocket&) {}
             virtual inline void onClientDisconnected(const ClientSocket&) {}
