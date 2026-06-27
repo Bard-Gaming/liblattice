@@ -73,6 +73,8 @@ namespace Lattice {
              */
             void setPollTimeout(int timeout) { m_PollTimeout = timeout; }
 
+            inline std::size_t connectedClients() const noexcept { return m_Clients.size(); }
+
             void run()
             {
                 m_IsRunning.store(true);
