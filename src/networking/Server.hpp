@@ -18,9 +18,11 @@
 
 
 namespace Lattice {
-    template <ClientSocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50>
+    template <ClientSocketType C, SocketType S = NonBlockingSocket, std::size_t CB = 50, bool SU = true>
     class Server {
         static constexpr auto CONNECTION_BACKLOG = CB;
+        static constexpr auto USE_SAFE_UPDATE = SU;
+
         using ClientSocket = C;
         using ServerSocket = S;
 
@@ -77,16 +79,10 @@ namespace Lattice {
                 onStart();
 
                 while (m_IsRunning.load()) {
-                    pollSockets();
-
-                    updateStart();
-                    purgeDisconnectedClients();
-
-                    for (auto& client : m_Clients)
-                        updateClient(client);
-
-                    acceptClient();
-                    updateEnd();
+                    if constexpr (USE_SAFE_UPDATE)
+                        updateSafe();
+                    else
+                        updateUnsafe();
                 }
 
                 onShutdown();
@@ -114,6 +110,44 @@ namespace Lattice {
             }
 
         private:
+            void updateSafe()
+            {
+                pollSockets();
+
+                updateStart();
+                purgeDisconnectedClients();
+
+                for (auto& client : m_Clients)
+                    updateClient(client);
+
+                acceptClient();
+                updateEnd();
+            }
+
+            /**
+             * Note:
+             * This update function is 'unsafe'
+             * as it immediately updates a newly
+             * accepted client, meaning the assumption
+             * that a client is available to read
+             * and write at the start of an update
+             * isn't true anymore.
+             */
+            void updateUnsafe()
+            {
+                pollSockets();
+
+                updateStart();
+                purgeDisconnectedClients();
+
+                acceptClient();
+
+                for (auto& client : m_Clients)
+                    updateClient(client);
+
+                updateEnd();
+            }
+
             virtual inline void onStart() {}
             virtual inline void onShutdown() {}
 
