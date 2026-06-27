@@ -120,8 +120,8 @@ namespace Lattice {
             virtual inline void updateStart() {}
             virtual inline void updateEnd() {}
             virtual inline void updateClient(ClientSocket&) {}
-            virtual inline void onClientAccepted(const ClientSocket&) {}
-            virtual inline void onClientDisconnected(const ClientSocket&) {}
+            virtual inline void onClientAccepted(ClientSocket&) {}
+            virtual inline void onClientDisconnected(ClientSocket&) {}
 
             virtual inline int pollTimeout(int current) { return current; }
 
