@@ -152,7 +152,7 @@ namespace Lattice {
             void purgeDisconnectedClients()
             {
                 auto pollfd = ++m_PollFds.cbegin();
-                auto it = m_Clients.cbegin();
+                auto it = m_Clients.begin();
 
                 while (it != m_Clients.cend()) {
                     if (it->isOpen()) {
