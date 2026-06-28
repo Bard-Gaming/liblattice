@@ -121,7 +121,7 @@ namespace Lattice {
             {
                 std::size_t newSize = m_FilledBytes - nChars;
 
-                for (std::size_t i = 0; i < nChars; i++) {
+                for (std::size_t i = 0; i < newSize; i++) {
                     m_Cache[i] = m_Cache[i + nChars];
                 }
 
